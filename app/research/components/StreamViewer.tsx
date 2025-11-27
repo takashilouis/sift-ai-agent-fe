@@ -51,12 +51,16 @@ export function StreamViewer({ chunks }: StreamViewerProps) {
                                         message = task.description;
                                     } else if (typeof task === 'string') {
                                         message = task;
+                                    } else if (task && typeof task === 'object' && 'action' in task) {
+                                        // Show action type if no description
+                                        message = `Running ${task.action} task`;
                                     } else {
-                                        message = `Executing task ${taskIndex + 1}`;
+                                        // Generic fallback - NO NUMBERS
+                                        message = "Processing research task";
                                     }
                                 } else {
-                                    const taskNum = chunk.state.current_task_index + 1;
-                                    message = `Executing task ${taskNum}`;
+                                    // Generic fallback - NO NUMBERS
+                                    message = "Processing research task";
                                 }
                             } else if (chunk.state.final_report) {
                                 message = "Generated final report";

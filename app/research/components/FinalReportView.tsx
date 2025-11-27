@@ -18,52 +18,57 @@ export function FinalReportView({ state }: FinalReportViewProps) {
 
     return (
         <div className="space-y-6">
-            {/* Sentiment Analysis */}
+            {/* Sentiment Analysis - Only show if we have valid data */}
             {state.sentiment && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Sentiment Analysis</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <p className="text-sm text-muted-foreground">
-                            {state.sentiment.summary}
-                        </p>
+                state.sentiment.positive > 0 ||
+                state.sentiment.neutral > 0 ||
+                state.sentiment.negative > 0 ||
+                (state.sentiment.overall && !isNaN(Number(state.sentiment.overall)))
+            ) && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Sentiment Analysis</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <p className="text-sm text-muted-foreground">
+                                {state.sentiment.summary}
+                            </p>
 
-                        <div className="space-y-3">
-                            <SentimentBar
-                                label="Positive"
-                                value={state.sentiment.positive}
-                                color="bg-green-500"
-                                icon={<TrendingUp className="w-4 h-4" />}
-                            />
-                            <SentimentBar
-                                label="Neutral"
-                                value={state.sentiment.neutral}
-                                color="bg-gray-400"
-                                icon={<Minus className="w-4 h-4" />}
-                            />
-                            <SentimentBar
-                                label="Negative"
-                                value={state.sentiment.negative}
-                                color="bg-red-500"
-                                icon={<TrendingDown className="w-4 h-4" />}
-                            />
-                        </div>
+                            <div className="space-y-3">
+                                <SentimentBar
+                                    label="Positive"
+                                    value={state.sentiment.positive}
+                                    color="bg-green-500"
+                                    icon={<TrendingUp className="w-4 h-4" />}
+                                />
+                                <SentimentBar
+                                    label="Neutral"
+                                    value={state.sentiment.neutral}
+                                    color="bg-gray-400"
+                                    icon={<Minus className="w-4 h-4" />}
+                                />
+                                <SentimentBar
+                                    label="Negative"
+                                    value={state.sentiment.negative}
+                                    color="bg-red-500"
+                                    icon={<TrendingDown className="w-4 h-4" />}
+                                />
+                            </div>
 
-                        <div className="pt-2">
-                            <div className="text-sm font-medium text-foreground">
-                                Overall Sentiment Score
+                            <div className="pt-2">
+                                <div className="text-sm font-medium text-foreground">
+                                    Overall Sentiment Score
+                                </div>
+                                <div className="text-3xl font-semibold text-primary mt-1">
+                                    {state.sentiment.overall && !isNaN(Number(state.sentiment.overall))
+                                        ? Number(state.sentiment.overall).toFixed(1)
+                                        : "N/A"}
+                                    <span className="text-base text-muted-foreground">/10</span>
+                                </div>
                             </div>
-                            <div className="text-3xl font-semibold text-primary mt-1">
-                                {state.sentiment.overall && !isNaN(Number(state.sentiment.overall))
-                                    ? Number(state.sentiment.overall).toFixed(1)
-                                    : "N/A"}
-                                <span className="text-base text-muted-foreground">/10</span>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
+                        </CardContent>
+                    </Card>
+                )}
 
             {/* Product Comparison */}
             {state.comparison && state.comparison.products && state.comparison.products.length > 0 && (

@@ -152,11 +152,13 @@ export default function ResearchPage() {
                         {/* Header */}
                         <div className="space-y-2">
                             <h1 className="text-3xl font-semibold text-foreground">
-                                Product Research Agent
+                                Research report
                             </h1>
-                            <p className="text-muted-foreground">
-                                Intelligent AI-powered research to help you find and compare the best products
-                            </p>
+                            {researchState?.query && (
+                                <p className="text-muted-foreground">
+                                    {researchState.query}
+                                </p>
+                            )}
                         </div>
 
                         {/* Input Bar */}
@@ -174,28 +176,25 @@ export default function ResearchPage() {
                             <EmptyState onPromptClick={handlePromptClick} />
                         ) : (
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                {/* Left Column - Timeline */}
-                                <div className="lg:col-span-1">
-                                    <div className="sticky top-6">
-                                        <div className="bg-card border border-border rounded-lg p-6">
-                                            <h2 className="text-lg font-semibold text-foreground mb-4">
-                                                Workflow
-                                            </h2>
-                                            <WorkflowTimeline steps={steps} />
+                                {/* Left Column - Timeline (hide when final report is ready) */}
+                                {!researchState?.final_report && (
+                                    <div className="lg:col-span-1">
+                                        <div className="sticky top-6">
+                                            <div className="bg-card border border-border rounded-lg p-6">
+                                                <h2 className="text-lg font-semibold text-foreground mb-4">
+                                                    Workflow
+                                                </h2>
+                                                <WorkflowTimeline steps={steps} />
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
+                                )}
 
-                                {/* Right Column - Results */}
-                                <div className="lg:col-span-2 space-y-6">
+                                {/* Right Column - Live Activity and Results */}
+                                <div className={researchState?.final_report ? "lg:col-span-3 space-y-6" : "lg:col-span-2 space-y-6"}>
                                     {/* Stream Viewer (only show during streaming) */}
                                     {isStreaming && streamChunks.length > 0 && (
                                         <StreamViewer chunks={streamChunks} />
-                                    )}
-
-                                    {/* Final Report */}
-                                    {researchState && (
-                                        <FinalReportView state={researchState} />
                                     )}
 
                                     {/* Loading State */}
@@ -210,6 +209,13 @@ export default function ResearchPage() {
                                         </div>
                                     )}
                                 </div>
+                            </div>
+                        )}
+
+                        {/* Final Report - Full Width Below */}
+                        {!hasStarted ? null : researchState && (
+                            <div className="mt-6">
+                                <FinalReportView state={researchState} />
                             </div>
                         )}
                     </div>
