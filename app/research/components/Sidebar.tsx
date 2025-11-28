@@ -9,7 +9,8 @@ import {
     ChevronDown,
     Folder,
     FileText,
-    User
+    User,
+    MessageSquare
 } from "lucide-react";
 import { useState } from "react";
 import Image from "next/image";
@@ -45,10 +46,14 @@ export function Sidebar() {
             </div>
 
             {/* New Research Button */}
-            <div className="px-4 pb-4">
-                <Button className="w-full justify-start gap-2" size="default">
+            <div className="px-4 pb-4 space-y-2">
+                <Button className="w-full justify-start gap-2" size="default" onClick={() => window.location.href = '/research'}>
                     <Plus className="w-4 h-4" />
                     New Research
+                </Button>
+                <Button className="w-full justify-start gap-2" variant="secondary" onClick={() => window.location.href = '/chat'}>
+                    <MessageSquare className="w-4 h-4" />
+                    New Chat
                 </Button>
             </div>
 
