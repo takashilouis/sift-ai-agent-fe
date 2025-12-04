@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { Sidebar } from "./components/Sidebar";
 import { TopNav } from "./components/TopNav";
 import { ResearchInputBar } from "./components/ResearchInputBar";
@@ -12,12 +13,50 @@ import { streamResearch } from "@/app/api/client";
 import { DEFAULT_STEPS, getStepsFromPlan, AgentStep, ResearchState, TaskResult } from "@/types/research";
 
 export default function ResearchPage() {
+    const searchParams = useSearchParams();
     const [isStreaming, setIsStreaming] = useState(false);
     const [hasStarted, setHasStarted] = useState(false);
     const [steps, setSteps] = useState<AgentStep[]>(DEFAULT_STEPS);
     const [streamChunks, setStreamChunks] = useState<any[]>([]);
     const [researchState, setResearchState] = useState<ResearchState | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [isDeepResearch, setIsDeepResearch] = useState(false);
+
+    // Load research report from URL parameter if present
+    useEffect(() => {
+        const reportId = searchParams.get('id');
+
+        if (reportId) {
+            // Reset state before loading new report
+            setIsStreaming(false);
+            setStreamChunks([]);
+            setError(null);
+
+            // Fetch the research report
+            fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/history/research/${reportId}`)
+                .then(res => res.json())
+                .then(data => {
+                    setHasStarted(true);
+                    setResearchState({
+                        query: data.query,
+                        final_report: data.content
+                    });
+                    // Mark all steps as completed since report is already done
+                    setSteps(DEFAULT_STEPS.map(step => ({ ...step, status: "completed" })));
+                })
+                .catch(err => {
+                    console.error("Failed to load research report:", err);
+                    setError("Failed to load research report");
+                });
+        } else {
+            // No report ID in URL, reset to empty state
+            setHasStarted(false);
+            setResearchState(null);
+            setSteps(DEFAULT_STEPS);
+            setStreamChunks([]);
+            setError(null);
+        }
+    }, [searchParams]);
 
     const handleResearch = useCallback(async (query: string) => {
         setIsStreaming(true);
@@ -30,7 +69,15 @@ export default function ResearchPage() {
         setSteps(DEFAULT_STEPS.map(step => ({ ...step, status: "pending" })));
 
         try {
-            for await (const chunk of streamResearch({ query })) {
+            for await (const chunk of streamResearch({ query, deep_research: isDeepResearch })) {
+                // Handle report_id chunk
+                if (chunk.type === "report_id" && chunk.report_id) {
+                    // Update URL with report ID without reloading
+                    const newUrl = `${window.location.pathname}?id=${chunk.report_id}`;
+                    window.history.pushState({ path: newUrl }, "", newUrl);
+                    continue;
+                }
+
                 // Add chunk to stream viewer
                 setStreamChunks(prev => [...prev, chunk]);
 
@@ -75,7 +122,7 @@ export default function ResearchPage() {
                 // Update step status
                 if (chunk.step) {
                     setSteps(prev =>
-                        prev.map((step, index) => {
+                        prev.map((step) => {
                             // Match by step name
                             if (step.name === chunk.step) {
                                 return {
@@ -134,7 +181,7 @@ export default function ResearchPage() {
         } finally {
             setIsStreaming(false);
         }
-    }, []);
+    }, [isDeepResearch]);
 
     const handlePromptClick = useCallback((prompt: string) => {
         handleResearch(prompt);
@@ -162,12 +209,44 @@ export default function ResearchPage() {
                         </div>
 
                         {/* Input Bar */}
-                        <ResearchInputBar onSubmit={handleResearch} isLoading={isStreaming} />
+                        <ResearchInputBar
+                            onSubmit={handleResearch}
+                            isLoading={isStreaming}
+                            isDeepResearch={isDeepResearch}
+                            onDeepResearchChange={setIsDeepResearch}
+                        />
 
                         {/* Error Display */}
                         {error && (
                             <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
                                 <strong>Error:</strong> {error}
+                            </div>
+                        )}
+
+                        {/* Current Status Display (during streaming) */}
+                        {isStreaming && !researchState?.final_report && (
+                            <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 animate-in fade-in slide-in-from-top-4 duration-500">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="w-2 h-2 rounded-full bg-primary animate-ping" />
+                                    <h2 className="text-sm font-medium text-primary uppercase tracking-wider">
+                                        Current Activity
+                                    </h2>
+                                </div>
+                                <p className="text-xl font-medium text-foreground">
+                                    {steps.find(s => s.status === "active")?.label || "Processing..."}
+                                </p>
+                                {streamChunks.length > 0 && (
+                                    <p className="text-muted-foreground mt-2">
+                                        {(() => {
+                                            const lastChunk = streamChunks[streamChunks.length - 1];
+                                            if (lastChunk.state?.current_task) return lastChunk.state.current_task;
+                                            if (lastChunk.step === "planner") return "Generating research plan...";
+                                            if (lastChunk.step === "scraper") return "Gathering data from external sources...";
+                                            if (lastChunk.step === "search") return "Searching the web for information...";
+                                            return "Analyzing data...";
+                                        })()}
+                                    </p>
+                                )}
                             </div>
                         )}
 

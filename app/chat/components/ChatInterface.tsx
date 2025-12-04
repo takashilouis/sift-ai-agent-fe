@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { Send, StopCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,10 +9,14 @@ import { MessageBubble } from "./MessageBubble";
 import { streamChat, ChatMessage } from "@/app/api/client";
 
 export function ChatInterface() {
+    const searchParams = useSearchParams();
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [agentStatus, setAgentStatus] = useState<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    const [sessionId, setSessionId] = useState<string | undefined>(undefined);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -21,23 +26,87 @@ export function ChatInterface() {
         scrollToBottom();
     }, [messages]);
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    // Load chat session from URL parameter if present
+    useEffect(() => {
+        const urlSessionId = searchParams.get('session');
+
+        if (urlSessionId) {
+            setSessionId(urlSessionId);
+
+            // Fetch the chat session history
+            fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/history/chat/${urlSessionId}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.messages && Array.isArray(data.messages)) {
+                        setMessages(data.messages.map((msg: any) => ({
+                            role: msg.role,
+                            content: msg.content
+                        })));
+                    }
+                })
+                .catch(err => {
+                    console.error("Failed to load chat session:", err);
+                    setMessages([{
+                        role: "assistant",
+                        content: "Failed to load chat history. Please try again."
+                    }]);
+                });
+        } else {
+            // No session ID in URL, reset to empty state
+            setSessionId(undefined);
+            setMessages([]);
+        }
+    }, [searchParams]);
+
+    const abortControllerRef = useRef<AbortController | null>(null);
+
+    const handleStop = () => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+            abortControllerRef.current = null;
+            setIsLoading(false);
+            setAgentStatus("Stopped by user");
+        }
+    };
+
+    const handleSubmit = async (e: React.FormEvent | React.KeyboardEvent) => {
         e.preventDefault();
-        if (!input.trim() || isLoading) return;
+        if ((!input.trim() && !isLoading)) return;
+
+        if (isLoading) {
+            handleStop();
+            return;
+        }
 
         const userMessage: ChatMessage = { role: "user", content: input };
         setMessages(prev => [...prev, userMessage]);
         setInput("");
         setIsLoading(true);
+        setAgentStatus(null); // Clear status on new submission
 
         // Add placeholder for assistant message
         setMessages(prev => [...prev, { role: "assistant", content: "" }]);
 
+        // Create new AbortController
+        const abortController = new AbortController();
+        abortControllerRef.current = abortController;
+
         try {
             let fullContent = "";
 
-            for await (const chunk of streamChat([...messages, userMessage])) {
-                if (chunk.type === "content") {
+            for await (const chunk of streamChat([...messages, userMessage], sessionId, abortController.signal)) {
+                if (chunk.type === "session_id" && chunk.session_id) {
+                    setSessionId(chunk.session_id);
+                    // Update URL with session ID if it wasn't already set
+                    if (!sessionId) {
+                        const newUrl = `${window.location.pathname}?session=${chunk.session_id}`;
+                        window.history.pushState({ path: newUrl }, "", newUrl);
+                    }
+                }
+                else if (chunk.type === "agent_status") {
+                    setAgentStatus(chunk.status || null);
+                }
+                else if (chunk.type === "content") {
                     fullContent += chunk.content;
 
                     setMessages(prev => {
@@ -50,14 +119,20 @@ export function ChatInterface() {
                     });
                 }
             }
-        } catch (error) {
+        } catch (error: any) {
+            if (error.name === 'AbortError') {
+                console.log('Chat aborted');
+                return;
+            }
             console.error("Chat error:", error);
             setMessages(prev => [...prev, {
-                role: "system",
-                content: "Sorry, an error occurred while processing your request."
+                role: "assistant",
+                content: "Sorry, I encountered an error. Please try again."
             }]);
         } finally {
+            abortControllerRef.current = null;
             setIsLoading(false);
+            setAgentStatus(null);
         }
     };
 
@@ -84,21 +159,41 @@ export function ChatInterface() {
                         isStreaming={isLoading && index === messages.length - 1 && msg.role === "assistant"}
                     />
                 ))}
+
+                {agentStatus && (
+                    <div className="flex items-center gap-2 p-4 bg-muted/30 rounded-lg border border-border animate-pulse">
+                        <div className="w-2 h-2 bg-primary rounded-full animate-ping" />
+                        <span className="text-sm text-muted-foreground">{agentStatus}</span>
+                    </div>
+                )}
+
                 <div ref={messagesEndRef} />
             </div>
 
             <div className="p-4 border-t bg-background">
-                <form onSubmit={handleSubmit} className="flex gap-2">
-                    <Input
+                <form onSubmit={handleSubmit} className="flex gap-2 items-end">
+                    <textarea
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter" && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSubmit(e);
+                            }
+                        }}
                         placeholder="Ask about a product..."
                         disabled={isLoading}
-                        className="flex-1"
+                        className="flex-1 min-h-[44px] max-h-[200px] w-full rounded-md border border-input bg-background px-3 py-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+                        rows={1}
                     />
-                    <Button type="submit" disabled={isLoading || !input.trim()}>
+                    <Button
+                        type="submit"
+                        disabled={!input.trim() && !isLoading}
+                        className="h-11 mb-[1px]"
+                        variant={isLoading ? "destructive" : "default"}
+                    >
                         {isLoading ? <StopCircle className="w-4 h-4" /> : <Send className="w-4 h-4" />}
-                        <span className="sr-only">Send</span>
+                        <span className="sr-only">{isLoading ? "Stop" : "Send"}</span>
                     </Button>
                 </form>
             </div>

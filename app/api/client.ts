@@ -5,12 +5,15 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 export interface ResearchQuery {
     query: string;
     mode?: string;
+    deep_research?: boolean;
 }
 
 export interface StreamChunk {
-    step: string;
-    state: any;
+    step?: string;
+    state?: any;
     timestamp?: string;
+    type?: string;
+    report_id?: string;
 }
 
 /**
@@ -48,22 +51,27 @@ export interface ChatMessage {
 }
 
 export interface ChatChunk {
-    type: "content" | "tool_start" | "tool_end";
+    type: "content" | "tool_start" | "tool_end" | "session_id" | "agent_status";
     content?: string;
     tool?: string;
     input?: any;
     output?: string;
+    session_id?: string;
+    status?: string | null;
 }
 
 export async function* streamChat(
-    messages: ChatMessage[]
+    messages: ChatMessage[],
+    sessionId?: string,
+    signal?: AbortSignal
 ): AsyncGenerator<ChatChunk, void, unknown> {
     const response = await fetch(`${API_URL}/api/chat`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
         },
-        body: JSON.stringify({ messages }),
+        body: JSON.stringify({ messages, session_id: sessionId }),
+        signal,
     });
 
     if (!response.ok) {
