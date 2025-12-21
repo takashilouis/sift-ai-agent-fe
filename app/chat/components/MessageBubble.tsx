@@ -12,6 +12,26 @@ interface MessageBubbleProps {
 export function MessageBubble({ role, content, isStreaming }: MessageBubbleProps) {
     const isUser = role === "user";
 
+    // Fix malformed markdown from LLM
+    const preprocessContent = (text: string) => {
+        if (!text) return "";
+        let processed = text;
+
+        // 1. Ensure code block start/end is on its own line (newline BEFORE)
+        // If ``` matches but is NOT at the start of the string and NOT preceded by newline
+        // effectively: replace any char that isn't newline followed by ``` with char + newline + ```
+        processed = processed.replace(/([^\n])```/g, '$1\n```');
+
+        // 2. Fix missing newline AFTER closing code block (newline AFTER)
+        // Replaces ```Text with ```\nText
+        // This splits "```Here" into "```\nHere"
+        processed = processed.replace(/```([a-zA-Z])/g, '```\n$1');
+
+        return processed;
+    };
+
+    const finalContent = preprocessContent(content);
+
     return (
         <div className={cn(
             "flex w-full gap-4 p-4",
@@ -55,8 +75,22 @@ export function MessageBubble({ role, content, isStreaming }: MessageBubbleProps
                                 const isPlan = match && match[1] === "plan";
 
                                 if (isPlan) {
+
+                                    // Logic to determine if we should auto-collapse
+                                    // If there is content AFTER this block, we collapse it.
+                                    // Since we are inside the render loop, 'content' is the full message content.
+                                    // check if 'finalContent' has text appearing AFTER the current 'children' (which is the plan text).
+                                    // A simpler heuristic: if the message contains text that is NOT inside a ```plan block, 
+                                    // AND we are rendering the plan block, we should probably collapse.
+
+                                    // Better approach: Check if fileContent has anything after the plan block closing ```
+                                    const hasAnswer = finalContent.includes("```") && finalContent.split("```").length > 2;
+
                                     return (
-                                        <details className="mb-4 bg-muted/50 rounded-lg border border-border overflow-hidden">
+                                        <details
+                                            className="mb-4 bg-muted/50 rounded-lg border border-border overflow-hidden"
+                                            open={!hasAnswer} // Open if no answer yet, closed if answer exists
+                                        >
                                             <summary className="px-4 py-2 bg-muted cursor-pointer font-medium text-sm flex items-center gap-2 select-none hover:bg-muted/80 transition-colors">
                                                 <span>Thinking Process / Plan</span>
                                             </summary>
@@ -74,13 +108,13 @@ export function MessageBubble({ role, content, isStreaming }: MessageBubbleProps
                             },
                         }}
                     >
-                        {content}
+                        {finalContent || (isStreaming ? "..." : "")}
                     </ReactMarkdown>
-                    {isStreaming && (
+                    {isStreaming && content && (
                         <span className="inline-block w-2 h-4 ml-1 bg-current animate-pulse" />
                     )}
                 </div>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 }

@@ -130,9 +130,9 @@ export function FinalReportView({ state }: FinalReportViewProps) {
             {/* Final Report */}
             {state.final_report && (
                 <Card>
-                    <CardHeader>
+                    {/* <CardHeader>
                         <CardTitle>Final Report</CardTitle>
-                    </CardHeader>
+                    </CardHeader> */}
                     <CardContent>
                         <div className="prose prose-sm max-w-none text-muted-foreground">
                             <ReactMarkdown
@@ -161,6 +161,13 @@ export function FinalReportView({ state }: FinalReportViewProps) {
                                     ),
                                     td: ({ node, ...props }) => (
                                         <td className="px-4 py-3 text-sm text-foreground" {...props} />
+                                    ),
+                                    img: ({ node, ...props }) => (
+                                        <img
+                                            {...props}
+                                            className="max-w-md max-h-96 h-auto rounded-lg my-4 shadow-md object-contain"
+                                            loading="lazy"
+                                        />
                                     ),
                                 }}
                             >

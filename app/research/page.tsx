@@ -41,8 +41,8 @@ export default function ResearchPage() {
                         query: data.query,
                         final_report: data.content
                     });
-                    // Mark all steps as completed since report is already done
-                    setSteps(DEFAULT_STEPS.map(step => ({ ...step, status: "completed" })));
+                    // Don't show steps for already completed reports
+                    setSteps([]);
                 })
                 .catch(err => {
                     console.error("Failed to load research report:", err);
@@ -65,8 +65,11 @@ export default function ResearchPage() {
         setStreamChunks([]);
         setResearchState({ query });
 
-        // Reset steps
-        setSteps(DEFAULT_STEPS.map(step => ({ ...step, status: "pending" })));
+        // Reset steps with first step as ACTIVE so it shows immediately
+        setSteps(DEFAULT_STEPS.map((step, index) => ({
+            ...step,
+            status: index === 0 ? "active" : "pending"
+        })));
 
         try {
             for await (const chunk of streamResearch({ query, deep_research: isDeepResearch })) {
@@ -115,16 +118,58 @@ export default function ResearchPage() {
                     // Update steps based on plan (if plan is available)
                     if (chunk.state.plan && chunk.step === "planner") {
                         const planSteps = getStepsFromPlan(chunk.state.plan);
-                        setSteps(planSteps);
+                        // Mark planner as completed, first task as active
+                        setSteps(planSteps.map((step, index) => {
+                            if (step.name === "planner") {
+                                return { ...step, status: "completed" };
+                            } else if (index === 1) {
+                                // First task after planner should be active
+                                return { ...step, status: "active" };
+                            }
+                            return step;
+                        }));
                     }
                 }
 
                 // Update step status
                 if (chunk.step) {
-                    setSteps(prev =>
-                        prev.map((step) => {
-                            // Match by step name
+                    console.log('[Step Update]', chunk.step, 'current_task_index:', chunk.state?.current_task_index);
+
+                    setSteps(prev => {
+                        console.log('[Current Steps]', prev.map(s => `${s.name}:${s.status}`).join(', '));
+
+                        // Special handling for task_executor - update the current task
+                        if (chunk.step === "task_executor" && chunk.state?.current_task_index !== undefined) {
+                            // Backend increments index AFTER task execution, so current_task_index points to NEXT task
+                            // The task that just completed is current_task_index - 1
+                            const completedTaskIndex = chunk.state.current_task_index - 1;
+                            const nextTaskIndex = chunk.state.current_task_index;
+
+                            console.log('[Task Executor] Completed task_' + completedTaskIndex + ', next is task_' + nextTaskIndex);
+
+                            return prev.map((step) => {
+                                // Mark the completed task as completed
+                                if (step.name === `task_${completedTaskIndex}` && completedTaskIndex >= 0) {
+                                    console.log('[Task Executor] Marking task_' + completedTaskIndex + ' as completed');
+                                    return { ...step, status: "completed" };
+                                }
+                                // Mark the next task as active
+                                if (step.name === `task_${nextTaskIndex}`) {
+                                    console.log('[Task Executor] Marking task_' + nextTaskIndex + ' as active');
+                                    return {
+                                        ...step,
+                                        status: "active",
+                                        timestamp: chunk.timestamp || new Date().toISOString(),
+                                    };
+                                }
+                                return step;
+                            });
+                        }
+
+                        // For other steps (planner, finalize), match by name
+                        return prev.map((step) => {
                             if (step.name === chunk.step) {
+                                console.log('[Step Match] Marking ' + chunk.step + ' as active');
                                 return {
                                     ...step,
                                     status: "active",
@@ -132,41 +177,24 @@ export default function ResearchPage() {
                                 };
                             }
 
-                            // For task_executor, mark the current task as active
-                            if (chunk.step === "task_executor" && chunk.state?.current_task_index !== undefined) {
-                                const currentTaskIndex = chunk.state.current_task_index;
-                                if (step.name === `task_${currentTaskIndex}`) {
-                                    return {
-                                        ...step,
-                                        status: "active",
-                                        timestamp: chunk.timestamp || new Date().toISOString(),
-                                    };
-                                }
-                                // Mark previous tasks as completed
-                                if (step.name.startsWith("task_")) {
-                                    const taskNum = parseInt(step.name.split("_")[1]);
-                                    if (taskNum < currentTaskIndex && step.status !== "completed") {
-                                        return { ...step, status: "completed" };
-                                    }
-                                }
-                            }
-
-                            // Mark previous steps as completed
+                            // Mark previously active steps as completed when moving to next step
                             const stepIndex = prev.findIndex(s => s.name === step.name);
                             const currentIndex = prev.findIndex(s => s.name === chunk.step);
-                            if (stepIndex < currentIndex && step.status !== "completed") {
+                            if (currentIndex >= 0 && stepIndex < currentIndex && step.status === "active") {
                                 return { ...step, status: "completed" };
                             }
 
                             return step;
-                        })
-                    );
+                        });
+                    });
                 }
             }
 
-            // Mark all steps as completed
+            // Mark the last active step as completed when streaming finishes
             setSteps(prev =>
-                prev.map(step => ({ ...step, status: "completed" }))
+                prev.map(step =>
+                    step.status === "active" ? { ...step, status: "completed" } : step
+                )
             );
         } catch (err) {
             console.error("Research error:", err);
@@ -251,45 +279,7 @@ export default function ResearchPage() {
                         )}
 
                         {/* Content Area */}
-                        {!hasStarted ? (
-                            <EmptyState onPromptClick={handlePromptClick} />
-                        ) : (
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                {/* Left Column - Timeline (hide when final report is ready) */}
-                                {!researchState?.final_report && (
-                                    <div className="lg:col-span-1">
-                                        <div className="sticky top-6">
-                                            <div className="bg-card border border-border rounded-lg p-6">
-                                                <h2 className="text-lg font-semibold text-foreground mb-4">
-                                                    Workflow
-                                                </h2>
-                                                <WorkflowTimeline steps={steps} />
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
 
-                                {/* Right Column - Live Activity and Results */}
-                                <div className={researchState?.final_report ? "lg:col-span-3 space-y-6" : "lg:col-span-2 space-y-6"}>
-                                    {/* Stream Viewer (only show during streaming) */}
-                                    {isStreaming && streamChunks.length > 0 && (
-                                        <StreamViewer chunks={streamChunks} />
-                                    )}
-
-                                    {/* Loading State */}
-                                    {isStreaming && streamChunks.length === 0 && (
-                                        <div className="flex items-center justify-center py-12">
-                                            <div className="text-center space-y-3">
-                                                <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-                                                <p className="text-sm text-muted-foreground">
-                                                    Starting research...
-                                                </p>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
 
                         {/* Final Report - Full Width Below */}
                         {!hasStarted ? null : researchState && (

@@ -97,12 +97,64 @@ export function getStepsFromPlan(plan?: ResearchPlan): AgentStep[] {
         return DEFAULT_STEPS;
     }
 
-    return plan.tasks.map((task, index) => ({
-        name: `task_${index}`,
-        label: getTaskLabel(task.action),
-        description: task.description || getTaskDescription(task.action),
-        status: "pending" as const,
-    }));
+    const steps: AgentStep[] = [];
+
+    // Always start with Planner Agent (completed since we have the plan)
+    steps.push({
+        name: "planner",
+        label: "Planner Agent",
+        description: "Decomposing query into search tasks",
+        status: "completed",
+    });
+
+    // Add a step for each task with ACTUAL backend agent names
+    plan.tasks.forEach((task, index) => {
+        const taskName = `task_${index}`;
+        let label = "";
+        let description = task.description || task.query || "";
+
+        // Use ACTUAL backend agent names
+        if (task.action === "search") {
+            label = "Search Agent";
+            description = `Searching: ${task.query || description}`;
+        } else if (task.action === "scrape") {
+            label = "Scraper Agent";
+            description = description || "Scraping product data";
+        } else if (task.action === "compare") {
+            label = "Compare Agent";
+            description = description || "Comparing products";
+        } else if (task.action === "sentiment") {
+            label = "Sentiment Agent";
+            description = description || "Analyzing sentiment";
+        } else if (task.action === "summarize") {
+            label = "Summarize Agent";
+            description = description || "Summarizing results";
+        } else {
+            label = task.action.charAt(0).toUpperCase() + task.action.slice(1) + " Agent";
+        }
+
+        // Shorten description if too long
+        if (description.length > 70) {
+            description = description.substring(0, 67) + "...";
+        }
+
+        steps.push({
+            name: taskName,
+            label: label,
+            description: description,
+            status: "pending",
+        });
+    });
+
+    // Add Final Report Agent step
+    steps.push({
+        name: "finalize",
+        label: "Final Report Agent",
+        description: "Generating final report",
+        status: "pending",
+    });
+
+    return steps;
 }
 
 function getTaskLabel(action: string): string {
@@ -112,7 +164,7 @@ function getTaskLabel(action: string): string {
         summarize: "Summarize Agent",
         sentiment: "Sentiment Agent",
         compare: "Compare Agent",
-        final_report: "Final Report",
+        final_report: "Final Report Agent",
     };
     return labels[action] || action;
 }
@@ -133,20 +185,20 @@ function getTaskDescription(action: string): string {
 export const DEFAULT_STEPS: AgentStep[] = [
     {
         name: "planner",
-        label: "Planning",
-        description: "Creating research plan",
+        label: "Planner Agent",
+        description: "Decomposing query into search tasks",
         status: "pending",
     },
     {
         name: "task_executor",
-        label: "Executing Tasks",
-        description: "Running research tasks",
+        label: "Search Agent",
+        description: "Executing search strategy",
         status: "pending",
     },
     {
         name: "finalize",
-        label: "Finalizing",
-        description: "Compiling results",
+        label: "Final Report Agent",
+        description: "Generating final report",
         status: "pending",
     },
 ];

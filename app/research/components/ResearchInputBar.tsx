@@ -74,7 +74,7 @@ export function ResearchInputBar({ onSubmit, isLoading, isDeepResearch, onDeepRe
                     </span>
                 </label>
                 <span className="text-xs text-muted-foreground bg-muted/50 px-2 py-0.5 rounded">
-                    {isDeepResearch ? "Gemini Pro • 1000-2000 words" : "Gemini Flash • Standard speed"}
+                    {isDeepResearch ? "Gemini Pro" : "Gemini Flash • Standard speed"}
                 </span>
             </div>
         </form>

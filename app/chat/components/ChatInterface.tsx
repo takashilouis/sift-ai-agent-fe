@@ -28,9 +28,15 @@ export function ChatInterface() {
 
     // Load chat session from URL parameter if present
     useEffect(() => {
+        // Prevent fetching if we are currently loading (streaming) or if session ID is already set correctly
+        if (isLoading) return;
+
         const urlSessionId = searchParams.get('session');
 
         if (urlSessionId) {
+            // optimized: don't re-fetch if we already have this session loaded
+            if (urlSessionId === sessionId && messages.length > 0) return;
+
             setSessionId(urlSessionId);
 
             // Fetch the chat session history
@@ -52,11 +58,13 @@ export function ChatInterface() {
                     }]);
                 });
         } else {
-            // No session ID in URL, reset to empty state
-            setSessionId(undefined);
-            setMessages([]);
+            // No session ID in URL, reset to empty state only if we're not just starting a new one (isLoading covers this partially, but safer to be explicit)
+            if (!isLoading && sessionId) {
+                setSessionId(undefined);
+                setMessages([]);
+            }
         }
-    }, [searchParams]);
+    }, [searchParams, sessionId, isLoading]); // Added dependencies to ensure correctness
 
     const abortControllerRef = useRef<AbortController | null>(null);
 
