@@ -9,6 +9,7 @@ import { EmptyState } from "./components/EmptyState";
 import { WorkflowTimeline } from "./components/WorkflowTimeline";
 import { StreamViewer } from "./components/StreamViewer";
 import { FinalReportView } from "./components/FinalReportView";
+import { ProgressTracker } from "./components/ProgressTracker";
 import { streamResearch } from "@/app/api/client";
 import { DEFAULT_STEPS, getStepsFromPlan, AgentStep, ResearchState, TaskResult } from "@/types/research";
 
@@ -21,10 +22,17 @@ export default function ResearchPage() {
     const [researchState, setResearchState] = useState<ResearchState | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isDeepResearch, setIsDeepResearch] = useState(false);
+    const [progress, setProgress] = useState(0);
+    const [currentTask, setCurrentTask] = useState("");
 
     // Load research report from URL parameter if present
     useEffect(() => {
         const reportId = searchParams.get('id');
+
+        // CRITICAL: Don't interfere if we're currently streaming!
+        if (isStreaming) {
+            return;
+        }
 
         if (reportId) {
             // Reset state before loading new report
@@ -41,8 +49,10 @@ export default function ResearchPage() {
                         query: data.query,
                         final_report: data.content
                     });
-                    // Don't show steps for already completed reports
+                    // Don't show steps for already completed reports loaded from history
                     setSteps([]);
+                    setProgress(100);
+                    setCurrentTask("Research complete");
                 })
                 .catch(err => {
                     console.error("Failed to load research report:", err);
@@ -55,8 +65,10 @@ export default function ResearchPage() {
             setSteps(DEFAULT_STEPS);
             setStreamChunks([]);
             setError(null);
+            setProgress(0);
+            setCurrentTask("");
         }
-    }, [searchParams]);
+    }, [searchParams, isStreaming]);
 
     const handleResearch = useCallback(async (query: string) => {
         setIsStreaming(true);
@@ -64,6 +76,8 @@ export default function ResearchPage() {
         setError(null);
         setStreamChunks([]);
         setResearchState({ query });
+        setProgress(0);
+        setCurrentTask("Starting research...");
 
         // Reset steps with first step as ACTIVE so it shows immediately
         setSteps(DEFAULT_STEPS.map((step, index) => ({
@@ -83,6 +97,16 @@ export default function ResearchPage() {
 
                 // Add chunk to stream viewer
                 setStreamChunks(prev => [...prev, chunk]);
+
+                // Update progress from backend
+                if (chunk.progress !== undefined) {
+                    setProgress(chunk.progress);
+                }
+
+                // Update current task description
+                if (chunk.current_task) {
+                    setCurrentTask(chunk.current_task);
+                }
 
                 // Update research state
                 if (chunk.state) {
@@ -196,6 +220,10 @@ export default function ResearchPage() {
                     step.status === "active" ? { ...step, status: "completed" } : step
                 )
             );
+
+            // Set progress to 100% and final message
+            setProgress(100);
+            setCurrentTask("Research complete!");
         } catch (err) {
             console.error("Research error:", err);
             setError(err instanceof Error ? err.message : "An error occurred during research");
@@ -251,29 +279,25 @@ export default function ResearchPage() {
                             </div>
                         )}
 
-                        {/* Current Status Display (during streaming) */}
-                        {isStreaming && !researchState?.final_report && (
-                            <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 animate-in fade-in slide-in-from-top-4 duration-500">
-                                <div className="flex items-center gap-3 mb-2">
-                                    <div className="w-2 h-2 rounded-full bg-primary animate-ping" />
-                                    <h2 className="text-sm font-medium text-primary uppercase tracking-wider">
-                                        Current Activity
-                                    </h2>
-                                </div>
-                                <p className="text-xl font-medium text-foreground">
-                                    {steps.find(s => s.status === "active")?.label || "Processing..."}
-                                </p>
-                                {streamChunks.length > 0 && (
-                                    <p className="text-muted-foreground mt-2">
-                                        {(() => {
-                                            const lastChunk = streamChunks[streamChunks.length - 1];
-                                            if (lastChunk.state?.current_task) return lastChunk.state.current_task;
-                                            if (lastChunk.step === "planner") return "Generating research plan...";
-                                            if (lastChunk.step === "scraper") return "Gathering data from external sources...";
-                                            if (lastChunk.step === "search") return "Searching the web for information...";
-                                            return "Analyzing data...";
-                                        })()}
-                                    </p>
+                        {/* Progress Tracker - ALWAYS VISIBLE DURING RESEARCH */}
+                        {hasStarted && (
+                            <div className="space-y-4">
+                                <ProgressTracker
+                                    progress={progress}
+                                    currentTask={currentTask || (isStreaming ? "Processing..." : "Research complete")}
+                                    status={isStreaming ? "running" : "completed"}
+                                    totalTasks={researchState?.plan?.tasks?.length}
+                                    completedTasks={researchState?.current_task_index}
+                                />
+
+                                {/* Workflow Timeline - ALWAYS VISIBLE */}
+                                {steps.length > 0 && (
+                                    <div className="bg-card border border-border rounded-lg p-6">
+                                        <h3 className="text-sm font-semibold text-foreground mb-4">
+                                            Research Progress
+                                        </h3>
+                                        <WorkflowTimeline steps={steps} />
+                                    </div>
                                 )}
                             </div>
                         )}
