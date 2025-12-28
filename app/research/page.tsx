@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Sidebar } from "./components/Sidebar";
 import { TopNav } from "./components/TopNav";
@@ -12,7 +12,7 @@ import { FinalReportView } from "./components/FinalReportView";
 import { streamResearch } from "@/app/api/client";
 import { DEFAULT_STEPS, getStepsFromPlan, AgentStep, ResearchState, TaskResult } from "@/types/research";
 
-export default function ResearchPage() {
+function ResearchPageContent() {
     const searchParams = useSearchParams();
     const [isStreaming, setIsStreaming] = useState(false);
     const [hasStarted, setHasStarted] = useState(false);
@@ -291,5 +291,13 @@ export default function ResearchPage() {
                 </main>
             </div>
         </div>
+    );
+}
+
+export default function ResearchPage() {
+    return (
+        <Suspense fallback={<div className="flex h-screen items-center justify-center">Loading...</div>}>
+            <ResearchPageContent />
+        </Suspense>
     );
 }
