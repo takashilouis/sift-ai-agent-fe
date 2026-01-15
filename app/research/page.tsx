@@ -140,18 +140,11 @@ export default function ResearchPage() {
                     });
 
                     // Update steps based on plan (if plan is available)
+                    // CRITICAL FIX: Only update steps from plan if we haven't already initialized them differently
+                    // or if this is the explicit planner step
                     if (chunk.state.plan && chunk.step === "planner") {
-                        const planSteps = getStepsFromPlan(chunk.state.plan);
-                        // Mark planner as completed, first task as active
-                        setSteps(planSteps.map((step, index) => {
-                            if (step.name === "planner") {
-                                return { ...step, status: "completed" };
-                            } else if (index === 1) {
-                                // First task after planner should be active
-                                return { ...step, status: "active" };
-                            }
-                            return step;
-                        }));
+                        // We defer step updates to the dedicated 'chunk.step' handler below 
+                        // to avoid race conditions, but we ensure the plan data is available in state
                     }
                 }
 
@@ -160,7 +153,30 @@ export default function ResearchPage() {
                     console.log('[Step Update]', chunk.step, 'current_task_index:', chunk.state?.current_task_index);
 
                     setSteps(prev => {
-                        console.log('[Current Steps]', prev.map(s => `${s.name}:${s.status}`).join(', '));
+                        // CRITICAL FIX: Re-derive steps from plan if available in chunk.state, 
+                        // preserving status of existing steps where possible.
+                        // This handles the "planner" completion event where we switch from DEFAULT_STEPS to plan-based steps.
+
+                        let currentSteps = [...prev];
+
+                        // If this is the planner finishing, we need to switch to the plan-based steps
+                        if (chunk.step === "planner" && chunk.state?.plan) {
+                            const planSteps = getStepsFromPlan(chunk.state.plan);
+
+                            // Map plan steps, marking planner as completed
+                            currentSteps = planSteps.map((step, index) => {
+                                if (step.name === "planner") {
+                                    return { ...step, status: "completed" };
+                                } else if (index === 1) {
+                                    // First task after planner should be active
+                                    return { ...step, status: "active" };
+                                }
+                                return step;
+                            });
+                            return currentSteps;
+                        }
+
+                        console.log('[Current Steps]', currentSteps.map(s => `${s.name}:${s.status}`).join(', '));
 
                         // Special handling for task_executor - update the current task
                         if (chunk.step === "task_executor" && chunk.state?.current_task_index !== undefined) {
@@ -171,7 +187,7 @@ export default function ResearchPage() {
 
                             console.log('[Task Executor] Completed task_' + completedTaskIndex + ', next is task_' + nextTaskIndex);
 
-                            return prev.map((step) => {
+                            return currentSteps.map((step) => {
                                 // Mark the completed task as completed
                                 if (step.name === `task_${completedTaskIndex}` && completedTaskIndex >= 0) {
                                     console.log('[Task Executor] Marking task_' + completedTaskIndex + ' as completed');
@@ -191,7 +207,7 @@ export default function ResearchPage() {
                         }
 
                         // For other steps (planner, finalize), match by name
-                        return prev.map((step) => {
+                        return currentSteps.map((step) => {
                             if (step.name === chunk.step) {
                                 console.log('[Step Match] Marking ' + chunk.step + ' as active');
                                 return {
@@ -202,8 +218,8 @@ export default function ResearchPage() {
                             }
 
                             // Mark previously active steps as completed when moving to next step
-                            const stepIndex = prev.findIndex(s => s.name === step.name);
-                            const currentIndex = prev.findIndex(s => s.name === chunk.step);
+                            const stepIndex = currentSteps.findIndex(s => s.name === step.name);
+                            const currentIndex = currentSteps.findIndex(s => s.name === chunk.step);
                             if (currentIndex >= 0 && stepIndex < currentIndex && step.status === "active") {
                                 return { ...step, status: "completed" };
                             }
@@ -280,7 +296,7 @@ export default function ResearchPage() {
                         )}
 
                         {/* Progress Tracker - ALWAYS VISIBLE DURING RESEARCH */}
-                        {hasStarted && (
+                        {hasStarted && !researchState?.final_report && (
                             <div className="space-y-4">
                                 <ProgressTracker
                                     progress={progress}
