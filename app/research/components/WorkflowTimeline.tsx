@@ -74,14 +74,7 @@ export function WorkflowTimeline({ steps }: WorkflowTimelineProps) {
                 return (
                     <div key={step.name} className="relative">
                         {/* Connector Line */}
-                        {index < steps.length - 1 && (
-                            <div
-                                className={cn(
-                                    "absolute left-[10px] top-[28px] w-0.5 h-[calc(100%+4px)] transition-colors duration-300",
-                                    getConnectorColor(step.status)
-                                )}
-                            />
-                        )}
+                        {/* Connector Line - REMOVED */}
 
                         {/* Step Content */}
                         <div

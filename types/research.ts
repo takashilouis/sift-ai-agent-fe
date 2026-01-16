@@ -150,13 +150,13 @@ export function getStepsFromPlan(plan?: ResearchPlan): AgentStep[] {
         });
     });
 
-    // Add Final Report Agent step
-    steps.push({
-        name: "finalize",
-        label: "Final Report Agent",
-        description: "Generating final report",
-        status: "pending",
-    });
+    // Final Report step is now part of the plan tasks (action: "final_report")
+    // steps.push({
+    //     name: "finalize",
+    //     label: "Final Report Agent",
+    //     description: "Generating final report",
+    //     status: "pending",
+    // });
 
     return steps;
 }
