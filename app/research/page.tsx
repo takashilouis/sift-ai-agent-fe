@@ -9,6 +9,7 @@ import { EmptyState } from "./components/EmptyState";
 import { WorkflowTimeline } from "./components/WorkflowTimeline";
 import { StreamViewer } from "./components/StreamViewer";
 import { FinalReportView } from "./components/FinalReportView";
+import { ProgressTracker } from "./components/ProgressTracker";
 import { streamResearch } from "@/app/api/client";
 import { DEFAULT_STEPS, getStepsFromPlan, AgentStep, ResearchState, TaskResult } from "@/types/research";
 
@@ -21,10 +22,17 @@ function ResearchPageContent() {
     const [researchState, setResearchState] = useState<ResearchState | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isDeepResearch, setIsDeepResearch] = useState(false);
+    const [progress, setProgress] = useState(0);
+    const [currentTask, setCurrentTask] = useState("");
 
     // Load research report from URL parameter if present
     useEffect(() => {
         const reportId = searchParams.get('id');
+
+        // CRITICAL: Don't interfere if we're currently streaming!
+        if (isStreaming) {
+            return;
+        }
 
         if (reportId) {
             // Reset state before loading new report
@@ -41,8 +49,10 @@ function ResearchPageContent() {
                         query: data.query,
                         final_report: data.content
                     });
-                    // Don't show steps for already completed reports
+                    // Don't show steps for already completed reports loaded from history
                     setSteps([]);
+                    setProgress(100);
+                    setCurrentTask("Research complete");
                 })
                 .catch(err => {
                     console.error("Failed to load research report:", err);
@@ -55,8 +65,10 @@ function ResearchPageContent() {
             setSteps(DEFAULT_STEPS);
             setStreamChunks([]);
             setError(null);
+            setProgress(0);
+            setCurrentTask("");
         }
-    }, [searchParams]);
+    }, [searchParams, isStreaming]);
 
     const handleResearch = useCallback(async (query: string) => {
         setIsStreaming(true);
@@ -64,6 +76,8 @@ function ResearchPageContent() {
         setError(null);
         setStreamChunks([]);
         setResearchState({ query });
+        setProgress(0);
+        setCurrentTask("Starting research...");
 
         // Reset steps with first step as ACTIVE so it shows immediately
         setSteps(DEFAULT_STEPS.map((step, index) => ({
@@ -83,6 +97,16 @@ function ResearchPageContent() {
 
                 // Add chunk to stream viewer
                 setStreamChunks(prev => [...prev, chunk]);
+
+                // Update progress from backend
+                if (chunk.progress !== undefined) {
+                    setProgress(chunk.progress);
+                }
+
+                // Update current task description
+                if (chunk.current_task) {
+                    setCurrentTask(chunk.current_task);
+                }
 
                 // Update research state
                 if (chunk.state) {
@@ -116,18 +140,11 @@ function ResearchPageContent() {
                     });
 
                     // Update steps based on plan (if plan is available)
+                    // CRITICAL FIX: Only update steps from plan if we haven't already initialized them differently
+                    // or if this is the explicit planner step
                     if (chunk.state.plan && chunk.step === "planner") {
-                        const planSteps = getStepsFromPlan(chunk.state.plan);
-                        // Mark planner as completed, first task as active
-                        setSteps(planSteps.map((step, index) => {
-                            if (step.name === "planner") {
-                                return { ...step, status: "completed" };
-                            } else if (index === 1) {
-                                // First task after planner should be active
-                                return { ...step, status: "active" };
-                            }
-                            return step;
-                        }));
+                        // We defer step updates to the dedicated 'chunk.step' handler below 
+                        // to avoid race conditions, but we ensure the plan data is available in state
                     }
                 }
 
@@ -136,7 +153,30 @@ function ResearchPageContent() {
                     console.log('[Step Update]', chunk.step, 'current_task_index:', chunk.state?.current_task_index);
 
                     setSteps(prev => {
-                        console.log('[Current Steps]', prev.map(s => `${s.name}:${s.status}`).join(', '));
+                        // CRITICAL FIX: Re-derive steps from plan if available in chunk.state, 
+                        // preserving status of existing steps where possible.
+                        // This handles the "planner" completion event where we switch from DEFAULT_STEPS to plan-based steps.
+
+                        let currentSteps = [...prev];
+
+                        // If this is the planner finishing, we need to switch to the plan-based steps
+                        if (chunk.step === "planner" && chunk.state?.plan) {
+                            const planSteps = getStepsFromPlan(chunk.state.plan);
+
+                            // Map plan steps, marking planner as completed
+                            currentSteps = planSteps.map((step, index) => {
+                                if (step.name === "planner") {
+                                    return { ...step, status: "completed" };
+                                } else if (index === 1) {
+                                    // First task after planner should be active
+                                    return { ...step, status: "active" };
+                                }
+                                return step;
+                            });
+                            return currentSteps;
+                        }
+
+                        console.log('[Current Steps]', currentSteps.map(s => `${s.name}:${s.status}`).join(', '));
 
                         // Special handling for task_executor - update the current task
                         if (chunk.step === "task_executor" && chunk.state?.current_task_index !== undefined) {
@@ -147,7 +187,7 @@ function ResearchPageContent() {
 
                             console.log('[Task Executor] Completed task_' + completedTaskIndex + ', next is task_' + nextTaskIndex);
 
-                            return prev.map((step) => {
+                            return currentSteps.map((step) => {
                                 // Mark the completed task as completed
                                 if (step.name === `task_${completedTaskIndex}` && completedTaskIndex >= 0) {
                                     console.log('[Task Executor] Marking task_' + completedTaskIndex + ' as completed');
@@ -167,7 +207,7 @@ function ResearchPageContent() {
                         }
 
                         // For other steps (planner, finalize), match by name
-                        return prev.map((step) => {
+                        return currentSteps.map((step) => {
                             if (step.name === chunk.step) {
                                 console.log('[Step Match] Marking ' + chunk.step + ' as active');
                                 return {
@@ -178,8 +218,8 @@ function ResearchPageContent() {
                             }
 
                             // Mark previously active steps as completed when moving to next step
-                            const stepIndex = prev.findIndex(s => s.name === step.name);
-                            const currentIndex = prev.findIndex(s => s.name === chunk.step);
+                            const stepIndex = currentSteps.findIndex(s => s.name === step.name);
+                            const currentIndex = currentSteps.findIndex(s => s.name === chunk.step);
                             if (currentIndex >= 0 && stepIndex < currentIndex && step.status === "active") {
                                 return { ...step, status: "completed" };
                             }
@@ -196,6 +236,10 @@ function ResearchPageContent() {
                     step.status === "active" ? { ...step, status: "completed" } : step
                 )
             );
+
+            // Set progress to 100% and final message
+            setProgress(100);
+            setCurrentTask("Research complete!");
         } catch (err) {
             console.error("Research error:", err);
             setError(err instanceof Error ? err.message : "An error occurred during research");
@@ -251,29 +295,25 @@ function ResearchPageContent() {
                             </div>
                         )}
 
-                        {/* Current Status Display (during streaming) */}
-                        {isStreaming && !researchState?.final_report && (
-                            <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 animate-in fade-in slide-in-from-top-4 duration-500">
-                                <div className="flex items-center gap-3 mb-2">
-                                    <div className="w-2 h-2 rounded-full bg-primary animate-ping" />
-                                    <h2 className="text-sm font-medium text-primary uppercase tracking-wider">
-                                        Current Activity
-                                    </h2>
-                                </div>
-                                <p className="text-xl font-medium text-foreground">
-                                    {steps.find(s => s.status === "active")?.label || "Processing..."}
-                                </p>
-                                {streamChunks.length > 0 && (
-                                    <p className="text-muted-foreground mt-2">
-                                        {(() => {
-                                            const lastChunk = streamChunks[streamChunks.length - 1];
-                                            if (lastChunk.state?.current_task) return lastChunk.state.current_task;
-                                            if (lastChunk.step === "planner") return "Generating research plan...";
-                                            if (lastChunk.step === "scraper") return "Gathering data from external sources...";
-                                            if (lastChunk.step === "search") return "Searching the web for information...";
-                                            return "Analyzing data...";
-                                        })()}
-                                    </p>
+                        {/* Progress Tracker - ALWAYS VISIBLE DURING RESEARCH */}
+                        {hasStarted && !researchState?.final_report && (
+                            <div className="space-y-4">
+                                <ProgressTracker
+                                    progress={progress}
+                                    currentTask={currentTask || (isStreaming ? "Processing..." : "Research complete")}
+                                    status={isStreaming ? "running" : "completed"}
+                                    totalTasks={researchState?.plan?.tasks?.length}
+                                    completedTasks={researchState?.current_task_index}
+                                />
+
+                                {/* Workflow Timeline - ALWAYS VISIBLE */}
+                                {steps.length > 0 && (
+                                    <div className="bg-card border border-border rounded-lg p-6">
+                                        <h3 className="text-sm font-semibold text-foreground mb-4">
+                                            Research Progress
+                                        </h3>
+                                        <WorkflowTimeline steps={steps} />
+                                    </div>
                                 )}
                             </div>
                         )}

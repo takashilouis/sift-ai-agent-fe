@@ -129,8 +129,12 @@ export function getStepsFromPlan(plan?: ResearchPlan): AgentStep[] {
         } else if (task.action === "summarize") {
             label = "Summarize Agent";
             description = description || "Summarizing results";
+        } else if (task.action === "final_report") {
+            label = "Final Report Agent";
+            description = description || "Generating comprehensive report";
         } else {
-            label = task.action.charAt(0).toUpperCase() + task.action.slice(1) + " Agent";
+            const action = String(task.action);
+            label = action.charAt(0).toUpperCase() + action.slice(1) + " Agent";
         }
 
         // Shorten description if too long
@@ -146,13 +150,13 @@ export function getStepsFromPlan(plan?: ResearchPlan): AgentStep[] {
         });
     });
 
-    // Add Final Report Agent step
-    steps.push({
-        name: "finalize",
-        label: "Final Report Agent",
-        description: "Generating final report",
-        status: "pending",
-    });
+    // Final Report step is now part of the plan tasks (action: "final_report")
+    // steps.push({
+    //     name: "finalize",
+    //     label: "Final Report Agent",
+    //     description: "Generating final report",
+    //     status: "pending",
+    // });
 
     return steps;
 }

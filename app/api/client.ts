@@ -14,6 +14,16 @@ export interface StreamChunk {
     timestamp?: string;
     type?: string;
     report_id?: string;
+    progress?: number;
+    current_task?: string;
+    metadata?: {
+        total_tasks?: number;
+        intent?: string;
+        action?: string;
+        task_index?: number;
+        query?: string;
+        from_task?: string;
+    };
 }
 
 /**
