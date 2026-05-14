@@ -1,50 +1,25 @@
-import { Button } from "@/components/ui/button";
-import { Check } from "lucide-react";
-
 const plans = [
     {
         name: "Starter",
-        price: "$0",
-        period: "forever",
-        description: "Perfect for occasional shoppers",
-        features: [
-            "5 research reports per month",
-            "Basic product comparison",
-            "Email support",
-            "48-hour report delivery",
-        ],
+        price: "$49",
+        period: "/mo",
+        features: ["1,000 Product Credits", "Basic Trend Forecasting", "Email Support"],
         cta: "Get Started",
         popular: false,
     },
     {
         name: "Professional",
-        price: "$29",
-        period: "per month",
-        description: "For serious shoppers and researchers",
-        features: [
-            "Unlimited research reports",
-            "Advanced AI analysis",
-            "Priority support",
-            "Real-time report delivery",
-            "Export to PDF",
-            "Price tracking alerts",
-        ],
-        cta: "Start Free Trial",
+        price: "$129",
+        period: "/mo",
+        features: ["10,000 Product Credits", "Advanced AI Insights", "Competitor Tracking (50)", "API Access"],
+        cta: "Go Pro",
         popular: true,
     },
     {
         name: "Enterprise",
-        price: "Custom",
-        period: "contact us",
-        description: "For teams and businesses",
-        features: [
-            "Everything in Professional",
-            "Team collaboration",
-            "API access",
-            "Custom integrations",
-            "Dedicated account manager",
-            "SLA guarantee",
-        ],
+        price: "$399",
+        period: "/mo",
+        features: ["Unlimited Credits", "Custom Model Training", "Dedicated Account Manager"],
         cta: "Contact Sales",
         popular: false,
     },
@@ -52,76 +27,62 @@ const plans = [
 
 export function Pricing() {
     return (
-        <section className="py-24 px-4 bg-background">
-            <div className="max-w-6xl mx-auto">
+        <section className="py-24 bg-surface-container">
+            <div className="max-w-7xl mx-auto px-6">
                 <div className="text-center mb-16 space-y-4">
-                    <h2 className="text-3xl md:text-4xl font-semibold text-foreground">
-                        Simple, Transparent Pricing
-                    </h2>
-                    <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                        Choose the plan that's right for you. No hidden fees.
-                    </p>
+                    <h2 className="text-4xl font-bold tracking-tight font-headline">Flexible Intelligence</h2>
+                    <p className="text-tertiary">Scale your research as your store grows. No hidden fees.</p>
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    {plans.map((plan, index) => (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-end">
+                    {plans.map((plan) => (
                         <div
-                            key={index}
-                            className={`relative rounded-2xl border p-8 space-y-6 ${plan.popular
-                                    ? "border-primary bg-card shadow-lg scale-105"
-                                    : "border-border bg-card"
-                                }`}
+                            key={plan.name}
+                            className={`bg-surface-container-lowest p-10 rounded-[1.5rem] space-y-8 ${
+                                plan.popular
+                                    ? "ring-4 ring-primary shadow-2xl relative scale-105 z-10"
+                                    : ""
+                            }`}
                         >
                             {plan.popular && (
-                                <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                                    <span className="bg-primary text-primary-foreground text-xs font-semibold px-3 py-1 rounded-full">
-                                        Most Popular
-                                    </span>
+                                <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-primary text-white px-6 py-1 rounded-full text-xs font-bold uppercase tracking-widest">
+                                    Most Popular
                                 </div>
                             )}
-
                             <div className="space-y-2">
-                                <h3 className="text-xl font-semibold text-foreground">
+                                <h4 className={`text-lg font-bold ${plan.popular ? "text-primary" : "text-tertiary"}`}>
                                     {plan.name}
-                                </h3>
+                                </h4>
                                 <div className="flex items-baseline gap-1">
-                                    <span className="text-4xl font-bold text-foreground">
+                                    <span className={`font-black ${plan.popular ? "text-5xl" : "text-4xl"}`}>
                                         {plan.price}
                                     </span>
-                                    <span className="text-sm text-muted-foreground">
-                                        /{plan.period}
-                                    </span>
+                                    <span className="text-tertiary">{plan.period}</span>
                                 </div>
-                                <p className="text-sm text-muted-foreground">
-                                    {plan.description}
-                                </p>
                             </div>
-
-                            <ul className="space-y-3">
-                                {plan.features.map((feature, featureIndex) => (
-                                    <li
-                                        key={featureIndex}
-                                        className="flex items-start gap-3 text-sm"
-                                    >
-                                        <Check className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                                        <span className="text-foreground">{feature}</span>
+                            <ul className="space-y-4">
+                                {plan.features.map((feature) => (
+                                    <li key={feature} className="flex gap-3 items-center text-sm">
+                                        <span
+                                            className={`material-symbols-outlined text-lg ${plan.popular ? "text-secondary" : "text-secondary-fixed-dim"}`}
+                                            style={{ fontVariationSettings: "'FILL' 1" }}
+                                        >
+                                            check_circle
+                                        </span>
+                                        {feature}
                                     </li>
                                 ))}
                             </ul>
-
-                            <Button
-                                className="w-full"
-                                variant={plan.popular ? "default" : "outline"}
-                                size="lg"
+                            <button
+                                className={`w-full py-4 rounded-full font-bold ${
+                                    plan.popular
+                                        ? "btn-primary-gradient shadow-lg"
+                                        : "border-2 border-outline-variant hover:bg-surface-container transition-colors"
+                                }`}
                             >
                                 {plan.cta}
-                            </Button>
+                            </button>
                         </div>
                     ))}
-                </div>
-
-                <div className="text-center mt-12 text-sm text-muted-foreground">
-                    All plans include a 14-day money-back guarantee
                 </div>
             </div>
         </section>

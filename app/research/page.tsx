@@ -2,8 +2,8 @@
 
 import { useState, useCallback, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Sidebar } from "./components/Sidebar";
-import { TopNav } from "./components/TopNav";
+import { AppSidebar } from "@/components/layout/AppSidebar";
+import { AppTopBar } from "@/components/layout/AppTopBar";
 import { ResearchInputBar } from "./components/ResearchInputBar";
 import { EmptyState } from "./components/EmptyState";
 import { WorkflowTimeline } from "./components/WorkflowTimeline";
@@ -261,10 +261,10 @@ function ResearchPageContent() {
 
     return (
         <div className="flex h-screen bg-background">
-            <Sidebar />
+            <AppSidebar />
 
             <div className="flex-1 flex flex-col overflow-hidden">
-                <TopNav />
+                <AppTopBar title="Research" />
 
                 <main className="flex-1 overflow-y-auto">
                     <div className="max-w-7xl mx-auto p-6 space-y-6">

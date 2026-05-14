@@ -1,51 +1,52 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { ArrowRight } from "lucide-react";
-import Image from "next/image";
 
 export function Hero() {
     return (
-        <section className="relative min-h-[90vh] flex items-center justify-center px-4 py-20">
-            <div className="max-w-6xl mx-auto text-center space-y-8">
-                {/* Logo/Icon */}
-                <div className="flex justify-center">
-                    <div className="w-20 h-20 rounded-2xl overflow-hidden flex items-center justify-center">
-                        <Image
-                            src="/logo.png"
-                            alt="market-sift logo"
-                            width={80}
-                            height={80}
-                            className="object-contain"
-                        />
-                    </div>
+        <section className="max-w-7xl mx-auto px-6 py-20 md:py-32 flex flex-col md:flex-row items-center gap-16 pt-32">
+            <div className="flex-1 space-y-8">
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-secondary-container text-on-secondary-container rounded-full text-sm font-medium">
+                    <span className="material-symbols-filled text-sm">auto_awesome</span>
+                    Organic Intelligence Now Live
                 </div>
-
-                {/* Hero Content */}
-                <div className="space-y-6">
-                    <h1 className="text-5xl md:text-6xl lg:text-7xl font-semibold text-foreground tracking-tight max-w-4xl mx-auto">
-                        AI-Powered Product Research Made Simple
-                    </h1>
-                    <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-                        market-sift uses advanced AI agents to research, analyze, and compare products across the web—saving you hours of manual work and helping you make confident purchasing decisions.
-                    </p>
-                </div>
-
-                {/* CTA Buttons */}
-                <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-                    <Link href="/research">
-                        <Button size="lg" className="text-base px-8 h-12 gap-2">
-                            Start Free Research
-                            <ArrowRight className="w-4 h-4" />
-                        </Button>
+                <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-on-surface leading-[1.1] font-headline">
+                    AI-Powered Product <br />
+                    <span className="text-primary italic">Research in Seconds</span>
+                </h1>
+                <p className="text-lg md:text-xl text-tertiary max-w-lg leading-relaxed">
+                    Stop drowning in spreadsheets. Market Sift surfaces high-intent product opportunities using advanced LLMs and real-time market signals.
+                </p>
+                <div className="flex flex-wrap gap-4 pt-4">
+                    <Link
+                        href="/research"
+                        className="btn-primary-gradient px-8 py-4 text-lg hover:scale-105 transition-transform"
+                    >
+                        Start Sifting Free
                     </Link>
-                    <Button size="lg" variant="outline" className="text-base px-8 h-12">
-                        Watch Demo
-                    </Button>
+                    <button className="px-8 py-4 rounded-full font-bold text-lg text-primary hover:bg-surface-container-low transition-colors">
+                        View Demo
+                    </button>
                 </div>
-
-                {/* Social Proof */}
-                <div className="pt-8 text-sm text-muted-foreground">
-                    Trusted by 10,000+ smart shoppers worldwide
+            </div>
+            <div className="flex-1 relative">
+                <div className="absolute inset-0 bg-primary/5 rounded-[1.5rem] -rotate-3 scale-105"></div>
+                <div className="relative bg-surface-container-lowest p-4 rounded-[1.5rem] shadow-2xl">
+                    <div className="aspect-video bg-inverse-surface rounded-[1rem] flex items-center justify-center overflow-hidden">
+                        <div className="p-8 text-inverse-on-surface space-y-4 w-full">
+                            <div className="flex items-center gap-3">
+                                <span className="material-symbols-outlined text-primary-fixed-dim">monitoring</span>
+                                <h3 className="font-headline font-bold text-lg">Market Analytics</h3>
+                            </div>
+                            <div className="space-y-2">
+                                <div className="h-2 bg-primary-container/30 rounded-full w-3/4"></div>
+                                <div className="h-2 bg-primary-container/20 rounded-full w-1/2"></div>
+                                <div className="flex gap-4 mt-4">
+                                    <div className="h-16 w-1/3 bg-primary-container/20 rounded-lg"></div>
+                                    <div className="h-16 w-1/3 bg-secondary/20 rounded-lg"></div>
+                                    <div className="h-16 w-1/3 bg-tertiary/20 rounded-lg"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>

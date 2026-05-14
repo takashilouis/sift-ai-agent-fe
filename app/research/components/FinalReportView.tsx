@@ -12,7 +12,7 @@ interface FinalReportViewProps {
 }
 
 export function FinalReportView({ state }: FinalReportViewProps) {
-    if (!state.final_report && !state.summary && !state.sentiment && !state.comparison) {
+    if (!state.final_report && !state.summary && !state.sentiment && !state.comparison && !state.error) {
         return null;
     }
 
@@ -173,6 +173,19 @@ export function FinalReportView({ state }: FinalReportViewProps) {
                             >
                                 {state.final_report}
                             </ReactMarkdown>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
+            {!state.final_report && state.error && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Research Status</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 whitespace-pre-wrap">
+                            {state.error}
                         </div>
                     </CardContent>
                 </Card>

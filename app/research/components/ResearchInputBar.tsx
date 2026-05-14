@@ -1,8 +1,5 @@
 "use client";
 
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Search, Mic, Upload } from "lucide-react";
 import { useState } from "react";
 
 interface ResearchInputBarProps {
@@ -23,59 +20,55 @@ export function ResearchInputBar({ onSubmit, isLoading, isDeepResearch, onDeepRe
     };
 
     return (
-        <form onSubmit={handleSubmit} className="w-full space-y-3">
-            <div className="relative flex items-center gap-2">
-                <div className="relative flex-1">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                    <Input
-                        type="text"
-                        placeholder="What product are you researching today?"
-                        value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                        disabled={isLoading}
-                        className="h-14 pl-12 pr-24 text-base border-2 focus-visible:ring-offset-0"
-                    />
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            disabled={isLoading}
-                        >
-                            <Mic className="w-4 h-4" />
-                        </Button>
-                    </div>
-                </div>
-                <Button
-                    type="submit"
-                    size="lg"
-                    className="h-14 px-8"
-                    disabled={isLoading || !query.trim()}
-                >
-                    {isLoading ? "Researching..." : "Research"}
-                </Button>
-            </div>
+        <form onSubmit={handleSubmit} className="w-full max-w-3xl mx-auto">
+            <div className="flex items-center gap-3 bg-surface-container-lowest rounded-full px-5 py-3 shadow-md border border-outline-variant/20">
+                <span className="material-symbols-outlined text-tertiary text-xl">search</span>
+                <input
+                    type="text"
+                    placeholder="Type a product or category..."
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    disabled={isLoading}
+                    className="flex-1 bg-transparent text-on-surface placeholder:text-tertiary outline-none text-sm py-1"
+                />
 
-            <div className="flex items-center gap-2 px-1">
-                <label className="flex items-center gap-2 cursor-pointer group">
-                    <div className="relative inline-flex items-center">
-                        <input
-                            type="checkbox"
-                            className="sr-only peer"
-                            checked={isDeepResearch}
-                            onChange={(e) => onDeepResearchChange(e.target.checked)}
-                            disabled={isLoading}
+                {/* Deep Research Toggle */}
+                <div className="flex items-center gap-2 border-l border-outline-variant/20 pl-4">
+                    <span className="text-xs text-tertiary font-medium whitespace-nowrap">Deep Research</span>
+                    <button
+                        type="button"
+                        onClick={() => onDeepResearchChange(!isDeepResearch)}
+                        disabled={isLoading}
+                        className={`relative w-10 h-5 rounded-full transition-colors ${
+                            isDeepResearch ? "bg-primary" : "bg-surface-dim"
+                        }`}
+                    >
+                        <div
+                            className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
+                                isDeepResearch ? "translate-x-5" : "translate-x-0.5"
+                            }`}
                         />
-                        <div className="w-9 h-5 bg-muted peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-                    </div>
-                    <span className={`text-sm font-medium transition-colors ${isDeepResearch ? "text-primary" : "text-muted-foreground group-hover:text-foreground"}`}>
-                        Deep Research Mode
-                    </span>
-                </label>
-                <span className="text-xs text-muted-foreground bg-muted/50 px-2 py-0.5 rounded">
-                    {isDeepResearch ? "Gemini Pro" : "Gemini Flash • Standard speed"}
-                </span>
+                    </button>
+                </div>
+
+                {/* Submit Button */}
+                <button
+                    type="submit"
+                    disabled={isLoading || !query.trim()}
+                    className="btn-primary-gradient px-6 py-2.5 text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    {isLoading ? (
+                        <>
+                            <span className="material-symbols-outlined text-lg animate-spin">progress_activity</span>
+                            Researching...
+                        </>
+                    ) : (
+                        <>
+                            Research
+                            <span className="material-symbols-outlined text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
+                        </>
+                    )}
+                </button>
             </div>
         </form>
     );

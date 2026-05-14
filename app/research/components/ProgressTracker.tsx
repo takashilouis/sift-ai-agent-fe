@@ -1,9 +1,5 @@
 "use client";
 
-import { Card, CardContent } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { CheckCircle2, Loader2, AlertCircle } from "lucide-react";
-
 interface ProgressTrackerProps {
     progress: number;
     currentTask: string;
@@ -17,71 +13,54 @@ export function ProgressTracker({
     currentTask,
     status,
     totalTasks,
-    completedTasks
+    completedTasks,
 }: ProgressTrackerProps) {
-    const getStatusIcon = () => {
-        switch (status) {
-            case "completed":
-                return <CheckCircle2 className="w-5 h-5 text-green-500" />;
-            case "error":
-                return <AlertCircle className="w-5 h-5 text-red-500" />;
-            case "running":
-                return <Loader2 className="w-5 h-5 text-primary animate-spin" />;
-            default:
-                return null;
-        }
-    };
-
-    const getStatusText = () => {
-        switch (status) {
-            case "completed":
-                return "Research completed";
-            case "error":
-                return "An error occurred";
-            case "running":
-                return currentTask || "Processing...";
-            default:
-                return "Ready";
-        }
-    };
-
     return (
-        <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10">
-            <CardContent className="pt-6">
-                <div className="space-y-4">
-                    {/* Status Header */}
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            {getStatusIcon()}
-                            <div>
-                                <h3 className="font-semibold text-foreground">
-                                    {getStatusText()}
-                                </h3>
-                                {totalTasks && completedTasks !== undefined && (
-                                    <p className="text-sm text-muted-foreground">
-                                        Task {completedTasks} of {totalTasks}
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-                        <div className="text-right">
-                            <p className="text-2xl font-bold text-primary">
-                                {Math.round(progress)}%
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Progress Bar */}
-                    <div className="space-y-2">
-                        <Progress value={progress} className="h-2" />
-                        {status === "running" && (
-                            <p className="text-xs text-muted-foreground animate-pulse">
-                                {currentTask}
+        <div className="bg-surface-container-lowest rounded-[1.5rem] p-6 space-y-4">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    {status === "running" && (
+                        <span className="material-symbols-outlined text-primary text-xl animate-spin">
+                            progress_activity
+                        </span>
+                    )}
+                    {status === "completed" && (
+                        <span className="material-symbols-outlined text-secondary text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+                            check_circle
+                        </span>
+                    )}
+                    {status === "error" && (
+                        <span className="material-symbols-outlined text-error text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+                            error
+                        </span>
+                    )}
+                    <div>
+                        <h3 className="font-semibold text-on-surface font-headline text-sm">
+                            {status === "completed" ? "Research completed" : status === "error" ? "An error occurred" : currentTask || "Processing..."}
+                        </h3>
+                        {totalTasks && completedTasks !== undefined && (
+                            <p className="text-xs text-tertiary">
+                                Task {completedTasks} of {totalTasks}
                             </p>
                         )}
                     </div>
                 </div>
-            </CardContent>
-        </Card>
+                <span className="text-2xl font-black text-primary font-headline">
+                    {Math.round(progress)}%
+                </span>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="w-full bg-surface-container rounded-full h-2 overflow-hidden">
+                <div
+                    className="h-full bg-gradient-to-r from-primary to-primary-container rounded-full transition-all duration-500 ease-out"
+                    style={{ width: `${progress}%` }}
+                />
+            </div>
+
+            {status === "running" && currentTask && (
+                <p className="text-xs text-tertiary animate-pulse">{currentTask}</p>
+            )}
+        </div>
     );
 }
